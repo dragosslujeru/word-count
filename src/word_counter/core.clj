@@ -4,17 +4,31 @@
   (:gen-class))
 
 (defn get-frequencies
-  [arg]
-  (map #(frequencies (re-seq #"(?m)\w+" (slurp (.getAbsolutePath %)))) arg)
-)
+  [files]
+  (pmap (fn [e]
+          (->> e
+               (slurp)
+               (re-seq #"(?m)\w+")
+               (frequencies))) files))
 
 (defn merge-map
-  [arg1 arg2]
-  (merge-with + arg1 arg2))
+  [m1 m2]
+  (merge-with + m1 m2))
+
+(defn java?
+  [file]
+  (and (.isFile file) (.endsWith (.getName file) ".java")))
+
+(defn sort-map
+  [map]
+  (into
+   (sorted-map-by (fn [key1 key2]
+                    (compare [(get map key2) key2]
+                             [(get map key1) key1]))) map))
 
 (defn -main
   [& args]
-  (def f (clojure.java.io/file "resources"))
-  (def fs (file-seq f))
-  (def only-files (filter #(.isFile %) fs))
-  (println (reduce merge-map (get-frequencies only-files))))
+  (let [f (clojure.java.io/file (first args))
+        fs (file-seq f)
+        java-files (filter java? fs)]
+    (pp/pprint (sort-map (reduce merge-map (get-frequencies java-files))))))
